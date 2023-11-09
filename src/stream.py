@@ -4,7 +4,8 @@ import numpy as np
 from .shapes import Rect, Landmarks
 from .tools import flatten
 from abc import ABC, abstractmethod
-from streamz import Stream, gen
+import streamz
+from streamz import Stream
 from tornado.ioloop import IOLoop
 
 
@@ -21,7 +22,7 @@ def main():
     landmarks_detector = face_detector.map(LandmarksDetector())
 
     # Many low-cost flow control operators, also custom (as 'merge'):
-    eyes_detector.zip(landmarks_detector).merge().sink(display)
+    eyes_detector.merge(landmarks_detector).sink(display)
 
     # Can visualize the stream (using graphviz and networkx):
     source.visualize("generated/stream.png", rankdir="LR")    
@@ -117,13 +118,9 @@ class LandmarksDetector:
 
 
 @Stream.register_api(attribute_name="merge")
-class Merge(Stream):
-    def __init__(self, upstream, **kwargs):
-        super().__init__(upstream, ensure_io_loop=True, **kwargs)
-
-    @gen.coroutine
-    def update(self, x, who=None, metadata=None):
-        yield self._emit(x[0], metadata=metadata)
+class Merge(streamz.zip):
+    def _emit(self, tup, *args):
+        super()._emit(tup[0], *args)
 
 
 def display(frame):
