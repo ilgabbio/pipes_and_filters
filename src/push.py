@@ -7,11 +7,10 @@ from abc import ABC, abstractmethod
 
 
 def main():
-    # Initializing the pipeline:
-    source = Source().then(Preprocessor()).then(FacesDetector()).then(LandmarksDetector()).then(Display())
-
-    # Running the pipeline:
-    Runner(source).run()
+    # Initializing and running the pipeline:
+    Runner(
+        Source() | Preprocessor() | FacesDetector() | LandmarksDetector() | Display()
+    ).run()
 
 
 class Runner:
@@ -21,6 +20,7 @@ class Runner:
     def run(self):
         while cv2.waitKey(1) != 27:
             self._source.push({"shapes": {}})
+        self._source.push(None)
 
 
 class Step(ABC):
@@ -28,7 +28,7 @@ class Step(ABC):
         self._next: Step | None = None
     
     def push(self, whiteboard: dict | None):
-        self.close() if self is None else self._op(whiteboard)
+        self.close() if whiteboard is None else self._op(whiteboard)
 
         if self._next is not None:
             self._next.push(whiteboard)
@@ -39,6 +39,9 @@ class Step(ABC):
         else:
             self._next = step
         return self
+
+    def __or__(self, other: Step) -> Step:
+        return self.then(other)
     
     @abstractmethod
     def _op(self, frame: dict) -> dict | None:

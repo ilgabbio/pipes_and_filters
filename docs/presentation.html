@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Software Architectures for Computer Vision on Edge Devices</title>
+  <meta charset="utf-8">
+  <style>
+    @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+    @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+    @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+    body {
+      font-family: 'Droid Serif';
+    }
+
+    h1,
+    h2,
+    h3 {
+      font-family: 'Yanone Kaffeesatz';
+      font-weight: normal;
+    }
+
+    .remark-code,
+    .remark-inline-code {
+      font-family: 'Ubuntu Mono';
+    }
+
+    pre {
+      margin: 0;
+    }
+
+    .remark-slide-content {
+      font-size: 24px;
+    }
+
+    .cols {
+      display: flex;
+    }
+
+    .col30 {
+      flex: 30%;
+    }
+
+    .col40 {
+      flex: 40%;
+    }
+
+    .col50 {
+      flex: 50%;
+    }
+
+    .col60 {
+      flex: 60%;
+    }
+
+    .col70 {
+      flex: 70%;
+    }
+  </style>
+</head>
+
+<body>
+  <textarea id="source">
+
+class: center, middle
+
+# Architectures for CV on the Edge
+
+### Considerations from literature and real projects
+
+---
+
+# Agenda
+
+1. **Introduction**:
+  - The faced problem
+  - A toy application
+1. **An omnipresent programming style**:
+  - Pipes and Filters
+  - Some ways to implement it
+  - Implementation issues
+1. 
+
+---
+
+# The faced problem
+
+- Design video processing applications:
+
+  - on **edge devices**
+  - constrained on **latency/throughput**
+  - running **real-time** (interacting with users/machines)
+  - built of **CPU/GPU-intensive** building blocks
+
+- Constraints:
+
+  - many steps with **inter-dependencies**
+  - possibly **multiple inputs/outputs**
+  - results with have **different deadlines**
+  - may use **specialized hardware**
+
+---
+
+# A toy application
+
+Detect face landmarks from camera and display them.
+
+<pre class="mermaid">
+  flowchart LR
+      c([Camera]) --> Preprocess --> Faces --> Landmarks --> d>Display]
+</pre>
+
+<center>
+  <img src="images/example.png" width="500"/>
+</center>
+
+---
+
+# Base code
+
+- We are using native implementations or algorithms;
+
+- Python is an orchestrator of CPU/GPU-intensive code;
+
+- Let's start on one thread, one machine.
+
+<pre class="mermaid">
+  classDiagram
+    namespace Python {
+      class Camera
+      class Preprocess
+      class Faces
+      class Landmarks
+      class Display
+    }
+    namespace Native {
+      class CameraDriver
+      class CvKernel
+      class HaarCascade
+      class LbfModel
+      class GraphicLib
+    }
+
+    Camera .. CameraDriver
+    Preprocess .. CvKernel
+    Faces .. HaarCascade
+    Landmarks .. LbfModel
+    Display .. GraphicLib
+</pre>
+
+---
+
+# Pipes and filters
+
+A **graph** of **interacting components**:
+
+<pre class="mermaid">
+  flowchart LR
+    s(Source) -- pipe --> Filter1 -- pipe --> sk1(Sink)
+    s -- pipe --> Filter2 -- pipe --> sk2(Sink)
+    Filter1 -- pipe --> Filter2
+</pre>
+
+- What about execution flow and communication?
+
+- How can parallelization be optimized?
+
+- What tools may configure/assemble the system?
+
+- How can we interact with a running system?
+
+- What frameworks are there and which to choose?
+
+---
+
+# P&F flow management: push
+
+Example: a (simple) pipeline pattern implementation
+
+.cols[
+  .col50[
+   ```python
+class Step(ABC):
+    def __or__(self, next: Step) -> Step:
+      # Store the next step.
+    
+    def push(self, frame: dict | None):
+      # Execute _op and push on next.
+
+    @abstractmethod
+    def _op(self, frame: dict):
+        pass
+
+    def close(self):
+        pass
+   ```
+  ]
+  .hspace[ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ]
+  .col50[
+    <pre class="mermaid">
+      classDiagram
+        class Runner
+        class Step {
+          push(message | poison-pill)
+          operation(message)
+          close()
+        }
+        Step "next" o--> "0..1" Step
+        Runner "runs" --> Step
+    </pre>
+  ]
+]
+
+
+  ```python
+# Composition and run: the runner pushes the whiteboard into the pipeline.
+Runner(
+    Source() | Preprocess() | Faces() | Landmarks() | Display()
+).run()
+  ```
+
+---
+
+# P&F flow management: pull
+
+In Python can be achieved using generators
+
+.cols[
+  .col50[
+   ```python
+def step(step_source):
+  for frame in step_source:
+    process(frame)
+    update(frame)
+    yield frame
+   ```
+
+  .vspace[]
+
+   ```python
+def source():
+    # Initialization.
+
+    while must not stop:
+        yield new whiteboard
+
+    # Finalization.
+   ```
+  ]
+  .hspace[ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ]
+  .col50[
+    <pre class="mermaid">
+      graph TD
+      subgraph step
+        subgraph previous
+          subgraph ...
+            source
+          end
+        end
+      end
+
+      runner --> |pulls| step
+    </pre>
+  ]
+]
+
+   ```python
+# Runned by pulling:
+for _ in pipeline:
+    pass
+   ```
+
+---
+
+# P&F flow management: schedule
+
+- Flow and concurrency are managed externally;
+
+- Communication is mediated by mailboxes;
+
+- Message processing are the parallel tasks.
+
+Actor systems provide this kind of flow management:
+
+<pre class="mermaid">
+  flowchart LR
+  system((Actor System))
+  subgraph Actor
+    p([processing])
+    subgraph Mailbox
+      m1(message\nmessage\n...)
+    end
+  end
+  subgraph a[Another actor]
+    subgraph box[Mailbox]
+      m2(message)
+    end
+  end
+  p --> |sends| m2
+  system --> |schedules| p
+</pre>
+
+---
+
+# P&F flow management: Actor Systems
+
+.cols[
+ .col50[
+  The system must manage:
+
+  - isolation
+
+  - synchronization
+
+  - scheduling
+
+  - distribution
+ ]
+ .col50[
+  The system must be:
+
+  - composed (configuration)
+
+  - started (threads/network)
+
+  - feeded (something pushes)
+ ]
+]
+
+.cols[
+  .col50[
+```python
+class StepActor(ActorBase):
+  def __init__(self, dest):
+    "Needs a reference to the target actor"
+    self._dest = dest
+
+  def on_receive(self, frame: dict):
+    "Receives messages and sends results"
+    self._dest.tell(process(frame))
+```
+  ]
+  .col50[
+  <p style="margin: -40px; margin-left: 50px;">
+   <img src="images/messagingPatterns.jpg" width="200"/>
+  </p>
+  ]
+]
+
+---
+
+# P&F: ports, and typing
+
+Cite the TeeTime framework
+Use some of the figures from there
+
+---
+
+# P&F: pipes and communication
+
+---
+
+# P&F communication: parameters & arguments
+
+---
+
+# P&F: composition and configuration
+
+---
+
+# Q&A
+
+    </textarea>
+
+  <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+  <script>
+    var slideshow = remark.create();
+    // don't let mermaid automatically load on start
+    mermaid.initialize({
+      startOnLoad: false,
+      cloneCssStyles: false
+    });
+
+    function initMermaidInSlide(slide) {
+      var slideIndex = slide.getSlideIndex();
+      // caution: no API to get the DOM element of current slide in remark, this might break in the future
+      var currentSlideElement = document.querySelectorAll(".remark-slides-area .remark-slide")[slideIndex];
+      var currentSlideMermaids = currentSlideElement.querySelectorAll(".mermaid");
+      if (currentSlideMermaids.length !== 0) {
+        mermaid.init(undefined, currentSlideMermaids);
+      }
+    }
+
+    // first starting slide won't trigger the slide event, manually init mermaid
+    initMermaidInSlide(slideshow.getSlides()[slideshow.getCurrentSlideIndex()])
+    // on each slide event, trigger init mermaid
+    slideshow.on('afterShowSlide', initMermaidInSlide);
+  </script>
+</body>
+
+</html>
