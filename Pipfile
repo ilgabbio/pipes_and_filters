@@ -10,6 +10,7 @@ opencv-contrib-python = "*"
 streamz = "*"
 networkx = "*"
 graphviz = "*"
+pykka = "*"
 
 [dev-packages]
 

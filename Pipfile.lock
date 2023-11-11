@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4b10a2979460424348dae487d5d150efabe21ffc9f8b367da23f92df3d6a1ebc"
+            "sha256": "46cce6e612022358b74e3d05b8fbb19618b193c7f8d58d0aa75bd675f254b53b"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -95,6 +95,14 @@
             ],
             "index": "pypi",
             "version": "==4.8.1.78"
+        },
+        "pykka": {
+            "hashes": [
+                "sha256:009fb812a1998f36724724b1cf88bd5d203d61473948b30467220aa9d32d907b",
+                "sha256:cb499c0b099412ee2200cb3ca51740c3834beb35bcd172b7daa44ee76ac165f2"
+            ],
+            "index": "pypi",
+            "version": "==4.0.1"
         },
         "setuptools": {
             "hashes": [
