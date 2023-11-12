@@ -11,6 +11,8 @@ streamz = "*"
 networkx = "*"
 graphviz = "*"
 pykka = "*"
+streamlit = "*"
+barfi = "*"
 
 [dev-packages]
 
