@@ -7,6 +7,8 @@ import streamlit as st
 from tools import Input, Output, define_block
 from shapes import Rect, Landmarks
 
+# pipenv run streamlit run src/p_and_f.py
+
 
 @define_block("Camera", Output("image"))
 def camera():
@@ -14,10 +16,6 @@ def camera():
     _, image = cap.read()
     cap.release()
     return image
-
-@define_block("EmptyList", Output("list"))
-def empty():
-    return []
 
 @define_block("Rgb2Gray", Input("image"), Output("gray"))
 def rgb2gray(image):
@@ -47,13 +45,17 @@ def landmarks(gray, faces):
 def cons(l1, l2):
     return [] + list(l1) + list(l2)
 
-@define_block("Save image", Input("image"), Input("shapes"))
-def save_image(image, shapes):
+@define_block("Draw image", Input("image"), Input("shapes"), Output("drawn image"))
+def draw_image(image, shapes):
     for shape in shapes:
         shape.draw(image)
+    return image
+
+@define_block("Save image", Input("image"))
+def save_image(image):
     cv2.imwrite('generated/frame.png', image)
 
-blocks = [camera, empty, rgb2gray, faces, landmarks, cons, save_image]
+blocks = [camera, rgb2gray, faces, landmarks, cons, draw_image, save_image]
 
 load_schema = st.selectbox('Select a saved schema:', barfi_schemas())
 compute_engine = st.checkbox('Activate barfi compute engine', value=False)

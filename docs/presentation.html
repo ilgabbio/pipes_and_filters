@@ -87,17 +87,18 @@ class: center, middle
 
 - Design video processing applications:
 
-  - on **edge devices**
-  - constrained on **latency/throughput**
-  - running **real-time** (interacting with users/machines)
-  - built of **CPU/GPU-intensive** building blocks
+  - running **real-time**:
+      - constrained on **latency/throughput**;
+  - on **edge devices**:
+      - relying on local resources, no cloud access;
+  - **CPU/GPU-intensive**:
+      - composed by native building blocks.
 
-- Constraints:
+- Structure:
 
-  - many steps with **inter-dependencies**
-  - possibly **multiple inputs/outputs**
-  - results with have **different deadlines**
-  - may use **specialized hardware**
+  - many **inter-dependent steps**;
+  - **multiple inputs/outputs**;
+  - outputs with **different deadlines**.
 
 ---
 
@@ -218,6 +219,12 @@ Runner(
     Source() | Preprocess() | Faces() | Landmarks() | Display()
 ).run()
   ```
+
+---
+
+# P&F flow: event-driven architecture
+
+To test:
 
 ---
 
@@ -357,6 +364,9 @@ Use some of the figures from there
 ---
 
 # P&F: pipes and communication
+
+- Queues
+- Event bus
 
 ---
 
