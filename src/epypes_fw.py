@@ -1,11 +1,14 @@
-import dataclasses
-from epypes import compgraph
 from dataclasses import dataclass
 from typing import Callable, Tuple
-import cv2
+
 import numpy as np
+import cv2
+
+from epypes import compgraph
+from epypes.pipeline import Pipeline, SourcePipeline, SinkPipeline
+from epypes.queue import Queue
+
 from src.shapes import Rect, Landmarks
-from src.actor import FacesDetector
 
 
 def main():
@@ -16,6 +19,7 @@ def main():
 
     # The computational graph is defined by means of function and their relations. 
     runner = create_runner(
+    #runner = create_pipelines(
         {'scale_factor': 1.1, 'min_neighbours': 4},
         func(camera, 'image'),
         func(rgb2gray, 'gray', 'image'),
@@ -23,12 +27,12 @@ def main():
         func(landmarks_detector, 'landmarks', 'gray', 'faces'),
         func(cons, 'shapes', 'faces', 'landmarks'),
         func(draw_image, 'drawn_image', 'image', 'shapes'),
+        func(display, '', 'drawn_image'),
     )
 
     # We can execute the runner and extract results:
     while cv2.waitKey(1) != 27:
         runner.run()
-        cv2.imshow('', runner['drawn_image'])
 
     # Done, releasing resources:
     camera.stop()
@@ -50,6 +54,42 @@ def func(callable: Callable, result: str, *parameters: str):
 
 def create_runner(hparams, *funcs: Func):
     return compgraph.CompGraphRunner(create_graph(*funcs), hparams)
+
+def create_pipelines(hparams, *funcs: Func):
+    #  Composition of pipelines:
+    q = Queue()
+    source = create_source(q, None, funcs[0])
+    sink = create_sink(q, hparams, *funcs[1:])
+
+    # The sink pipeline should listen on the queue:
+    sink.listen()
+
+    # The runnable part is the source:
+    return source
+
+def create_source(queue: Queue, frozen_tokens, *funcs: Func):
+    def camera_out(pipe):
+        return pipe['image'],
+
+    return SourcePipeline(
+        "Camera source",
+        create_graph(*funcs),
+        q_out=queue,
+        out_prep_func=camera_out,
+        frozen_tokens=frozen_tokens,
+    )
+
+def create_sink(queue: Queue, frozen_tokens, *funcs: Func):
+    def image_dispatcher(image):
+        return {'image': image[0]}
+
+    return SinkPipeline(
+        "Image processing",
+        create_graph(*funcs),
+        q_in=queue,
+        event_dispatcher=image_dispatcher,
+        frozen_tokens=frozen_tokens,
+    )
 
 def create_graph(*funcs: Func):
     return compgraph.CompGraph(
@@ -106,6 +146,11 @@ def draw_image(image, shapes):
     for shape in shapes:
         shape.draw(image)
     return image
+
+def display(image):
+    # Note: cannot work on a thread different from main:
+    cv2.imshow('', image)
+    #print("drawn image produced")
 
 
 if __name__ == "__main__":
