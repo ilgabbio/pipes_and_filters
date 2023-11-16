@@ -37,8 +37,17 @@
       display: flex;
     }
 
+    .col20 {
+      flex: 20%;
+    }
+
     .col30 {
       flex: 30%;
+    }
+
+    .rowTitle,
+    .rowTitle p {
+      margin: 0;
     }
 
     .col40 {
@@ -72,33 +81,65 @@ class: center, middle
 
 # Agenda
 
-1. **Introduction**:
-  - The faced problem
-  - A toy application
-1. **An omnipresent programming style**:
-  - Pipes and Filters
-  - Some ways to implement it
-  - Implementation issues
-1. 
+- Introduction to the problem
+
+- Pipes and Filters programming style
+
+- Issues we faced in our experience
+
+- Some Open-Source frameworks
+
+- Q&A and discussion
 
 ---
 
 # The faced problem
 
-- Design video processing applications:
+- Design **image processing** applications:
 
   - running **real-time**:
       - constrained on **latency/throughput**;
+
   - on **edge devices**:
-      - relying on local resources, no cloud access;
+      - relying on **local resources**, no cloud access;
+
   - **CPU/GPU-intensive**:
-      - composed by native building blocks.
+      - composed by **native building blocks**.
+
+---
+
+# The faced problem
+
+- Some examples we faced:
+
+  - product quality monitoring:
+      - multiple **interacting embedded devices**;
+
+  - parking lot monitoring:
+      - low **latency constraints** on some tasks;
+      - low **computational power**;
+
+  - road/driver real-time monitoring from mobile:
+      - **real-time** needs for security;
+
+  - photo-book generation from mobile;
+      - **high troughput**, progressive processing;
+
+---
+
+# The faced problem
 
 - Structure:
 
   - many **inter-dependent steps**;
+
   - **multiple inputs/outputs**;
-  - outputs with **different deadlines**.
+
+  - outputs with **different deadlines**;
+
+  - outputs with **different priority**;
+
+  - **multiple deploys** for different tasks.
 
 ---
 
@@ -108,9 +149,9 @@ Detect face landmarks from camera and display them.
 
 <pre class="mermaid">
   flowchart LR
-      c([Camera]) --> Preprocess --> Faces --> Landmarks --> d>Display]
+  c([Camera -]) --> p[Preprocess -] --> f[Faces -] --> l[Landmarks -] --> d>Display -]
 </pre>
-
+<br/>
 <center>
   <img src="images/example.png" width="500"/>
 </center>
@@ -119,41 +160,39 @@ Detect face landmarks from camera and display them.
 
 # Base code
 
-- We are using native implementations or algorithms;
+- We are using native algorithms implementations;
 
 - Python is an orchestrator of CPU/GPU-intensive code;
 
-- Let's start on one thread, one machine.
+- Multithreading can be adopted by algorithms.
 
 <pre class="mermaid">
   classDiagram
-    namespace Python {
-      class Camera
-      class Preprocess
-      class Faces
-      class Landmarks
-      class Display
+    namespace Python- {
+      class Camera-
+      class Preprocess-
+      class Faces-
+      class Landmarks-
+      class Display-
     }
-    namespace Native {
-      class CameraDriver
-      class CvKernel
-      class HaarCascade
-      class LbfModel
-      class GraphicLib
+    namespace Native- {
+      class CameraDriver-
+      class CvKernel-
+      class HaarCascade-
+      class LbfModel-
+      class GraphicLib-
     }
 
-    Camera .. CameraDriver
-    Preprocess .. CvKernel
-    Faces .. HaarCascade
-    Landmarks .. LbfModel
-    Display .. GraphicLib
+    Camera- .. CameraDriver-
+    Preprocess- .. CvKernel-
+    Faces- .. HaarCascade-
+    Landmarks- .. LbfModel-
+    Display- .. GraphicLib-
 </pre>
 
 ---
 
 # Pipes and filters
-
-A **graph** of **interacting components**:
 
 <pre class="mermaid">
   flowchart LR
@@ -162,15 +201,155 @@ A **graph** of **interacting components**:
     Filter1 -- pipe --> Filter2
 </pre>
 
-- What about execution flow and communication?
+- What are **pipes** and what guarantees must they offer?
+- What are **filters** and what must offer?
+- What about the **flow management** and optimization?
+- How many **threads**/**machines** will the graph spread on?
+- How can we **assemble** the system (who and how)?
+- What about **configuration** of the system/hyperparametes?
+- What about **communication** between components?
+- How can we **interact** with the running system (in/out)?
+- What **frameworks** are there and which to choose?
 
-- How can parallelization be optimized?
+---
 
-- What tools may configure/assemble the system?
+# P&F: Pipes
 
-- How can we interact with a running system?
+.cols[
+  .col70[
+    - Pipes allow filters to interact:
 
-- What frameworks are there and which to choose?
+    - **directly**, function calls;
+
+    - **across threads**;
+
+        - locking or not locking?
+        - is SP/SC the target?
+        - Lock-free solutions.
+
+    - **across machines**;
+
+        - not on edge-devices;
+        - unbound latency.
+
+    - **transparently**, managed.
+  ]
+  .col30[
+    <img src="images/queue.png" width="300"/>
+  ]
+]
+
+---
+
+# P&F: Topology.. what kind of graphs
+
+NOTE: Constructs formalized in *stream algebra* [3].
+
+--
+
+.cols[
+  .col20.rowTitle[
+    Chains
+  ]
+  .col60[
+    <pre class="mermaid">
+      flowchart LR
+      a --> b --> c --> d
+    </pre>
+  ]
+  .col20.rowTitle[
+    SP/SC
+  ]
+]
+
+--
+
+.cols[
+  .col20.rowTitle[
+    Trees
+  ]
+  .col60[
+    <pre class="mermaid">
+      flowchart LR
+      a --> b --> c --> d
+      b --> e --> f
+    </pre>
+  ]
+  .col20.rowTitle[
+    SP/MC<br/>Queue or pub/sub?
+  ]
+]
+
+--
+
+.cols[
+  .col20.rowTitle[
+    DAGs
+  ]
+  .col60[
+    <pre class="mermaid">
+      flowchart LR
+      a --> b --> c --> e
+      b --> d --> e --> f
+    </pre>
+  ]
+  .col20.rowTitle[
+    MP/MC<br/>Sync? How?
+  ]
+]
+
+--
+
+.cols[
+  .col20.rowTitle[
+    Arbitrary
+  ]
+  .col60[
+    <pre class="mermaid">
+      flowchart LR
+      a --> b --> c --> e --> f
+      e --> d --> b
+    </pre>
+  ]
+  .col20.rowTitle[
+    Feedback loops
+  ]
+]
+
+---
+
+# P&F: Filters
+
+.cols[
+  .seventy[
+      - The filters need:
+
+      - to be **callables** with arguments;
+
+      - well-defined (typed) **ports**;
+
+      - **instantiation**/**parameterization**;
+
+      - **lifecycle** management;
+
+      - user defined **code** that:
+
+          - consumes some data;
+          - can change its internal state;
+          - produces some results;
+
+      - to be **statefull** (better, if stateless).
+  ]
+  .thirty[
+    <br/><br/><br/><br/><br/><br/>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="images/filter.png" width="200"/>
+  ]
+]
+
+---
+
+# P&F: Flow management
+
 
 ---
 
@@ -224,13 +403,11 @@ Runner(
 
 # P&F flow: event-driven architecture
 
-To test:
-
 ---
 
 # P&F flow management: pull
 
-In Python can be achieved using generators
+In Python can be achieved using generators:
 
 .cols[
   .col50[
@@ -309,6 +486,84 @@ Actor systems provide this kind of flow management:
 
 ---
 
+# P&F flow management: timely
+
+- bytewax
+
+---
+
+# P&F: Threading/Distribution
+
+<pre class="mermaid">
+  flowchart LR
+    subgraph "thread 1 -"
+      s(Source) -- pipe --> f1(Filter1 -)
+      s -- pipe --> f2(Filter2 -)
+    end
+    subgraph "thread 2 -"
+      f1 -- pipe --> f3(Filter3 -) -- pipe --> sk(Sink)
+      f2 -- pipe --> f3
+    end
+</pre>
+
+- Parallelization on one machine by means of **threads**:
+
+  - at the **operation** level;
+  - at the **sub-graph** level;
+  - one thread per **graph**.
+
+- Generally **no distribution** (complex, not needed):
+
+  - eventually splitting at the problem level.
+
+---
+
+# P&F: Structure and assembly
+
+- Graph described by the **code**:
+
+  - **direct** composition of objects/functions;
+  - design **patterns** (observer, pipeline, pub/sub).
+
+- Graph described by the **configuration**:
+
+  - graph representation **data structure**;
+  - **Inversion of Control** (IoC) system description;
+  - event-based systems connected by **bus configuration**;
+  - **auto-wiring** guided by in/out argument relations.
+
+<pre class="mermaid">
+  flowchart LR
+    conf[[Configuration]] --> Graph1
+    subgraph Graph1
+      direction LR
+      a --> b --> c
+    end
+    Graph1 --- pipe --> Graph2
+    subgraph Graph2
+      direction LR
+      d --> e --> f
+    end
+</pre>
+
+---
+
+# P&F: Configuration
+
+---
+
+# P&F: Communication
+
+---
+
+# P&F: Interaction
+
+---
+
+# P&F: Frameworks
+
+---
+
 # P&F flow management: Actor Systems
 
 .cols[
@@ -378,12 +633,21 @@ Use some of the figures from there
 
 ---
 
-# Q&A
+# Thanks for listening
+
+## Bib
+
+1. *"Efficient Engineering and Execution of Pipe-and-Filter Architectures"*, M.Sc. Christian Wulf, 2019
+1. *"EPypes: a framework for building event-driven data processing pipelines"*, Oleksandr Semeniuta, Petter Falkman, 2019
+1. *"A Stream Algebra for Computer Vision Pipelines"*, Mohamed A. Helala, Ken Q. Pu, Faisal Z. Qureshi, 2014
+1. *"Software Architecture for Computer Vision: Beyond Pipes and Filters"*, Alexandre R.J. François, 2003
+
+## Q&A
 
     </textarea>
 
-  <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+  <script src="js/remark-latest.min.js"></script>
+  <script src="js/mermaid.min.js"></script>
   <script>
     var slideshow = remark.create();
     // don't let mermaid automatically load on start
