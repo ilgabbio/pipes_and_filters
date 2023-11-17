@@ -213,26 +213,24 @@ Detect face landmarks from camera and display them.
 
 ---
 
-# P&F: Pipes
+# P&F: Pipes allow filters to interact
 
 .cols[
   .col70[
-    - Pipes allow filters to interact:
+- **Directly**, function calls;
 
-    - **directly**, function calls;
+- **Across threads**:
 
-    - **across threads**;
+  - Locking or not locking?
+  - Lock-free solutions.
+  - Is SP/SC the target?
 
-        - locking or not locking?
-        - is SP/SC the target?
-        - Lock-free solutions.
+- **Across machines**:
 
-    - **across machines**;
+  - not on edge-devices;
+  - unbound latency.
 
-        - not on edge-devices;
-        - unbound latency.
-
-    - **transparently**, managed.
+- **Transparently**, managed.
   ]
   .col30[
     <img src="images/queue.png" width="300"/>
@@ -242,10 +240,6 @@ Detect face landmarks from camera and display them.
 ---
 
 # P&F: Topology.. what kind of graphs
-
-NOTE: Constructs formalized in *stream algebra* [3].
-
---
 
 .cols[
   .col20.rowTitle[
@@ -307,7 +301,7 @@ NOTE: Constructs formalized in *stream algebra* [3].
   .col60[
     <pre class="mermaid">
       flowchart LR
-      a --> b --> c --> e --> f
+      a --> b --> c --> e
       e --> d --> b
     </pre>
   ]
@@ -316,40 +310,48 @@ NOTE: Constructs formalized in *stream algebra* [3].
   ]
 ]
 
----
+--
 
-# P&F: Filters
-
-.cols[
-  .seventy[
-      - The filters need:
-
-      - to be **callables** with arguments;
-
-      - well-defined (typed) **ports**;
-
-      - **instantiation**/**parameterization**;
-
-      - **lifecycle** management;
-
-      - user defined **code** that:
-
-          - consumes some data;
-          - can change its internal state;
-          - produces some results;
-
-      - to be **statefull** (better, if stateless).
-  ]
-  .thirty[
-    <br/><br/><br/><br/><br/><br/>
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img src="images/filter.png" width="200"/>
-  ]
+.rowTitle[
+  NOTE: Constructs formalized in *stream algebra* [3].
 ]
 
 ---
 
-# P&F: Flow management
+# P&F: Filters
 
+- **Callables** with arguments:
+  - local processing, eventually on accelerated devices;
+  - well-defined (typed) **ports**.
+
+- **Lifecycle** management, **parameterization**:
+  - can be manual, better if done with IoC/CDI.
+
+.cols[
+  .col70[
+- User defined **code** that:
+  - consumes some data;
+  - can change its internal state;
+  - produces some results.
+
+- Can be **statefull** (better, if stateless).
+  ]
+  .col30[
+<br/><br/><img src="images/filter.png" width="200"/>
+  ]
+]
+
+
+---
+
+# P&F flow management
+
+**<big>What drives message flowing through P&Fs?</big>**
+
+<center>
+  <img src="images/flowing.jpg" width="500"/><br/><br/>
+  What is <i>the pump</i>?
+</center>
 
 ---
 
@@ -391,6 +393,7 @@ class Step(ABC):
   ]
 ]
 
+.vspace[]
 
   ```python
 # Composition and run: the runner pushes the whiteboard into the pipeline.
@@ -398,10 +401,6 @@ Runner(
     Source() | Preprocess() | Faces() | Landmarks() | Display()
 ).run()
   ```
-
----
-
-# P&F flow: event-driven architecture
 
 ---
 
@@ -430,6 +429,14 @@ def source():
 
     # Finalization.
    ```
+
+  .vspace[]
+
+   ```python
+# Runned by pulling:
+for _ in pipeline:
+    pass
+   ```
   ]
   .hspace[ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ]
   .col50[
@@ -448,12 +455,6 @@ def source():
   ]
 ]
 
-   ```python
-# Runned by pulling:
-for _ in pipeline:
-    pass
-   ```
-
 ---
 
 # P&F flow management: schedule
@@ -464,7 +465,7 @@ for _ in pipeline:
 
 - Message processing are the parallel tasks.
 
-Actor systems provide this kind of flow management:
+E.g.: actor systems provide this kind of flow management:
 
 <pre class="mermaid">
   flowchart LR
@@ -483,6 +484,30 @@ Actor systems provide this kind of flow management:
   p --> |sends| m2
   system --> |schedules| p
 </pre>
+
+---
+
+# P&F flow management: event-driven
+
+- Filters are decoupled, **interacting with events**.
+
+- Can be implemented using patterns, e.g.: **observer**.
+
+- More decoupling using an **event-bus**:
+
+<center>
+  <pre class="mermaid">
+    sequenceDiagram
+    Filter1 -> Filter2: Indirect communication
+    Note over Filter1, Filter2: Event-bus
+  </pre>
+</center>
+
+<center>
+  <small>
+    <i>I used an EB in a real-time distributed gamed simulation system.<i/>
+  </small>
+</center>
 
 ---
 
@@ -520,6 +545,17 @@ Actor systems provide this kind of flow management:
 
 # P&F: Structure and assembly
 
+A processing graph can be a complex structure:
+
+<center>
+  <img src="images/tee-time.png" width="700"/><br/><br/>
+  See the **TeeTime framework**, Christian Wulf.
+</center>
+
+---
+
+# P&F: Structure and assembly
+
 - Graph described by the **code**:
 
   - **direct** composition of objects/functions;
@@ -546,6 +582,10 @@ Actor systems provide this kind of flow management:
     end
 </pre>
 
+<center>
+  See epypes, both the paper and the python implementation.  
+</center>
+
 ---
 
 # P&F: Configuration
@@ -553,6 +593,8 @@ Actor systems provide this kind of flow management:
 ---
 
 # P&F: Communication
+
+parameters & arguments
 
 ---
 
@@ -608,28 +650,6 @@ class StepActor(ActorBase):
   </p>
   ]
 ]
-
----
-
-# P&F: ports, and typing
-
-Cite the TeeTime framework
-Use some of the figures from there
-
----
-
-# P&F: pipes and communication
-
-- Queues
-- Event bus
-
----
-
-# P&F communication: parameters & arguments
-
----
-
-# P&F: composition and configuration
 
 ---
 
