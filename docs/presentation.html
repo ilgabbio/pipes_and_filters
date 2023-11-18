@@ -65,6 +65,31 @@
     .col70 {
       flex: 70%;
     }
+
+    .bib {
+      font-size: 18px;
+    }
+
+    .fancy {
+      font-size: 120px;
+      color: blue;
+      margin: 0;
+      padding: 0;
+      text-shadow: 1px 1px 1px #000091,
+        2px 2px 1px #000091,
+        3px 3px 1px #000091,
+        4px 4px 1px #000091,
+        5px 5px 1px #000091,
+        6px 6px 1px #000091,
+        7px 7px 1px #000091,
+        8px 8px 1px #000091,
+        9px 9px 1px #000091,
+        10px 10px 1px #000091,
+        18px 18px 6px rgba(16, 16, 16, 0.4),
+        22px 22px 10px rgba(16, 16, 16, 0.2),
+        25px 25px 35px rgba(16, 16, 16, 0.2),
+        30px 30px 60px rgba(16, 16, 16, 0.4);
+    }
   </style>
 </head>
 
@@ -76,20 +101,6 @@ class: center, middle
 # Architectures for CV on the Edge
 
 ### Considerations from literature and real projects
-
----
-
-# Agenda
-
-- Introduction to the problem
-
-- Pipes and Filters programming style
-
-- Issues we faced in our experience
-
-- Some Open-Source frameworks
-
-- Q&A and discussion
 
 ---
 
@@ -133,13 +144,15 @@ class: center, middle
 
   - many **inter-dependent steps**;
 
-  - **multiple inputs/outputs**;
+  - **multiple** inputs/outputs;
 
-  - outputs with **different deadlines**;
+  - outputs with different **priority**;
 
-  - outputs with **different priority**;
+  - outputs with different **computational complexity**;
 
-  - **multiple deploys** for different tasks.
+  - outputs with different **time constraints**;
+
+  - configuration time **composeability**;
 
 ---
 
@@ -160,9 +173,9 @@ Detect face landmarks from camera and display them.
 
 # Base code
 
-- We are using native algorithms implementations;
+- We are using **native algorithms** implementations;
 
-- Python is an orchestrator of CPU/GPU-intensive code;
+- Python is an **orchestrator** of CPU/GPU-intensive code;
 
 - Multithreading can be adopted by algorithms.
 
@@ -457,33 +470,25 @@ for _ in pipeline:
 
 ---
 
-# P&F flow management: schedule
+# P&F flow management: pull-push
 
-- Flow and concurrency are managed externally;
+More often we have a pull-push mix:
 
-- Communication is mediated by mailboxes;
-
-- Message processing are the parallel tasks.
-
-E.g.: actor systems provide this kind of flow management:
-
-<pre class="mermaid">
-  flowchart LR
-  system((Actor System))
-  subgraph Actor
-    p([processing])
-    subgraph Mailbox
-      m1(message\nmessage\n...)
-    end
-  end
-  subgraph a[Another actor]
-    subgraph box[Mailbox]
-      m2(message)
-    end
-  end
-  p --> |sends| m2
-  system --> |schedules| p
-</pre>
+<center>
+  <pre class="mermaid">
+    sequenceDiagram
+    participant P as Producer
+    participant R as Runner
+    participant C as Consumer
+    R ->> +P: Pull
+    activate R
+    P -->> -R: message
+    R ->> +C: Push(message)
+    C -->> -R: Consumed
+    deactivate R
+  </pre>
+  Happens in concurrent components using queues (the pump).
+</center>
 
 ---
 
@@ -503,106 +508,35 @@ E.g.: actor systems provide this kind of flow management:
   </pre>
 </center>
 
-<center>
-  <small>
-    <i>I used an EB in a real-time distributed gamed simulation system.<i/>
-  </small>
-</center>
-
 ---
 
-# P&F flow management: timely
+# P&F flow management: external
 
-- bytewax
+- Flow and concurrency are managed externally;
 
----
+- Communication is mediated by mailboxes (pipes);
 
-# P&F: Threading/Distribution
+- Message processors are the concurrent actors (filters).
+
+E.g.: actor systems provide this kind of flow management:
 
 <pre class="mermaid">
   flowchart LR
-    subgraph "thread 1 -"
-      s(Source) -- pipe --> f1(Filter1 -)
-      s -- pipe --> f2(Filter2 -)
+  system((Actor System))
+  subgraph Actor
+    p([processing])
+    subgraph Mailbox
+      m1(message\nmessage\n...)
     end
-    subgraph "thread 2 -"
-      f1 -- pipe --> f3(Filter3 -) -- pipe --> sk(Sink)
-      f2 -- pipe --> f3
+  end
+  subgraph a[Another actor]
+    subgraph box[Mailbox]
+      m2(message)
     end
+  end
+  p --> |sends| m2
+  system --> |triggers| p
 </pre>
-
-- Parallelization on one machine by means of **threads**:
-
-  - at the **operation** level;
-  - at the **sub-graph** level;
-  - one thread per **graph**.
-
-- Generally **no distribution** (complex, not needed):
-
-  - eventually splitting at the problem level.
-
----
-
-# P&F: Structure and assembly
-
-A processing graph can be a complex structure:
-
-<center>
-  <img src="images/tee-time.png" width="700"/><br/><br/>
-  See the **TeeTime framework**, Christian Wulf.
-</center>
-
----
-
-# P&F: Structure and assembly
-
-- Graph described by the **code**:
-
-  - **direct** composition of objects/functions;
-  - design **patterns** (observer, pipeline, pub/sub).
-
-- Graph described by the **configuration**:
-
-  - graph representation **data structure**;
-  - **Inversion of Control** (IoC) system description;
-  - event-based systems connected by **bus configuration**;
-  - **auto-wiring** guided by in/out argument relations.
-
-<pre class="mermaid">
-  flowchart LR
-    conf[[Configuration]] --> Graph1
-    subgraph Graph1
-      direction LR
-      a --> b --> c
-    end
-    Graph1 --- pipe --> Graph2
-    subgraph Graph2
-      direction LR
-      d --> e --> f
-    end
-</pre>
-
-<center>
-  See epypes, both the paper and the python implementation.  
-</center>
-
----
-
-# P&F: Configuration
-
----
-
-# P&F: Communication
-
-parameters & arguments
-
----
-
-# P&F: Interaction
-
----
-
-# P&F: Frameworks
 
 ---
 
@@ -653,16 +587,188 @@ class StepActor(ActorBase):
 
 ---
 
+# P&F flow management: timely
+
+External flow management with **data generation** tracking:
+
+<pre class="mermaid">
+  flowchart LR
+    Source --> |gen 3| Filter1 --> Filter2 --> |gen 2| Filter3 --> |gen 1| Sink
+    Filter3 --> |gen 1| Filter1
+</pre>
+
+- Proposed by Microsoft Research in 2013 (Naiad);
+
+- supports scaling on multiple threads/nodes;
+
+- allows incremental update of results;
+
+- reimplemented in Rust and wrapped by *bytewax*.
+
+---
+
+# P&F: Threading/Distribution
+
+If algorithms have insufficient parallelization...
+
+&nbsp;&nbsp;&nbsp;&nbsp;...what would you make concurrent in the graph?
+
+<center>
+  <img src="images/concurrency.png" width="550"/><br/>
+  <small>
+    <i> Efficient Engineering and Execution of Pipe-and-Filter Architectures </i>
+  </small>
+</center>
+
+---
+
+# P&F: Threading/Distribution
+
+<pre class="mermaid">
+  flowchart LR
+    subgraph "thread 1 -"
+      s(Source) -- pipe --> f1(Filter1 -)
+      s -- pipe --> f2(Filter2 -)
+    end
+    subgraph "thread 2 -"
+      f1 -- pipe --> f3(Filter3 -) -- pipe --> sk(Sink)
+      f2 -- pipe --> f3
+    end
+</pre>
+
+- Parallelization on one machine by means of **threads**:
+
+  - at the **filter** level;
+  - at the **sub-graph** level;
+  - one thread per **graph**.
+
+- Less is more, if possible **prevent distribution complexity**:
+
+  - eventually splitting at the problem level.
+
+---
+
+# P&F threading: load balancing
+
+How to **balance load** between threads?
+
+<br/>
+
+In **TeeTime** it is proposed to *adaptively transform* the graph: 
+
+<center>
+  <img src="images/balancing.png" width="600"/><br/>
+  <small>
+    <i>Efficient Engineering and Execution of Pipe-and-Filter Architectures</i>
+  </small>
+</center>
+
+---
+
+# P&F threading: load balancing
+
+How to **balance load** between threads?
+
+<br/>
+
+**Epypes** proposes a framework to *split* the graph in a pipeline: 
+
+<center>
+  <pre class="mermaid">
+    flowchart LR
+      subgraph "thread 1 -"
+        s(Source) --> f1(Filter1 -)
+        s --> f2(Filter2 -) --> f3(Filter3 -)
+        f1 --> f3
+      end
+      subgraph "thread 2 -"
+        f3 -- pipe --> f4(Filter4 -) --> f5(Filter5 -) --> sk(Sink)
+      end
+  </pre>
+  <small>
+    <i>EPypes: a framework for building event-driven data processing pipelines</i>
+  </small>
+</center>
+
+- Efficient within graph comm. with direct calls;
+
+- efficient between graph comm. using SP/SC queues.
+
+---
+
+# P&F: Messaging (internal, external)
+
+
+---
+
+# P&F: Structure and assembly
+
+- Graph described by the **code**:
+
+  - **direct** composition of objects/functions;
+  - design **patterns** (observer, pipeline, pub/sub).
+
+- Graph described by the **configuration**:
+
+  - graph representation **data structure**;
+  - **Inversion of Control** (IoC) system description;
+  - event-based systems connected by **bus configuration**;
+  - **auto-wiring** guided by in/out argument relations.
+
+<pre class="mermaid">
+  flowchart LR
+    conf[[Configuration]] --> Graph1
+    subgraph Graph1
+      direction LR
+      a --> b --> c
+    end
+    Graph1 --- pipe --> Graph2
+    subgraph Graph2
+      direction LR
+      d --> e --> f
+    end
+</pre>
+
+<center>
+  See epypes, both the paper and the python implementation.  
+</center>
+
+---
+
+# P&F: Structure and assembly
+
+A processing graph can be a complex structure:
+
+<center>
+  <img src="images/tee-time.png" width="700"/><br/><br/>
+  See the <b>TeeTime framework</b>, Christian Wulf.
+</center>
+
+---
+
+# P&F: Configuration
+
+---
+
 # Thanks for listening
 
-## Bib
+.cols[
+ .col30[
+## Q&A
+#### Bib
+ ]
+ .col70[
+ <p class="fancy">(o_O) ?</p>
+ ]
+]
 
+.bib[
 1. *"Efficient Engineering and Execution of Pipe-and-Filter Architectures"*, M.Sc. Christian Wulf, 2019
 1. *"EPypes: a framework for building event-driven data processing pipelines"*, Oleksandr Semeniuta, Petter Falkman, 2019
 1. *"A Stream Algebra for Computer Vision Pipelines"*, Mohamed A. Helala, Ken Q. Pu, Faisal Z. Qureshi, 2014
+1. *"Naiad: A Timely Dataflow System"*, Derek G. Murray, Frank McSherry, Rebecca Isaacs, Michael Isard, Paul Barham, Martìn Abadi, 2013
 1. *"Software Architecture for Computer Vision: Beyond Pipes and Filters"*, Alexandre R.J. François, 2003
-
-## Q&A
+]
 
     </textarea>
 
