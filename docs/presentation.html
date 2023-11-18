@@ -162,7 +162,7 @@ Detect face landmarks from camera and display them.
 
 <pre class="mermaid">
   flowchart LR
-  c([Camera -]) --> p[Preprocess -] --> f[Faces -] --> l[Landmarks -] --> d>Display -]
+  c([Camera]) --> p[Preprocess] --> f[Faces] --> l[Landmarks] --> d>Display]
 </pre>
 <br/>
 <center>
@@ -181,26 +181,26 @@ Detect face landmarks from camera and display them.
 
 <pre class="mermaid">
   classDiagram
-    namespace Python- {
-      class Camera-
-      class Preprocess-
-      class Faces-
-      class Landmarks-
-      class Display-
+    namespace Python {
+      class Camera
+      class Preprocess
+      class Faces
+      class Landmarks
+      class Display
     }
-    namespace Native- {
-      class CameraDriver-
-      class CvKernel-
-      class HaarCascade-
-      class LbfModel-
-      class GraphicLib-
+    namespace Native {
+      class CameraDriver
+      class CvKernel
+      class HaarCascade
+      class LbfModel
+      class GraphicLib
     }
 
-    Camera- .. CameraDriver-
-    Preprocess- .. CvKernel-
-    Faces- .. HaarCascade-
-    Landmarks- .. LbfModel-
-    Display- .. GraphicLib-
+    Camera .. CameraDriver
+    Preprocess .. CvKernel
+    Faces .. HaarCascade
+    Landmarks .. LbfModel
+    Display .. GraphicLib
 </pre>
 
 ---
@@ -626,12 +626,12 @@ If algorithms have insufficient parallelization...
 
 <pre class="mermaid">
   flowchart LR
-    subgraph "thread 1 -"
-      s(Source) -- pipe --> f1(Filter1 -)
-      s -- pipe --> f2(Filter2 -)
+    subgraph "thread 1"
+      s(Source) -- pipe --> f1(Filter1)
+      s -- pipe --> f2(Filter2)
     end
-    subgraph "thread 2 -"
-      f1 -- pipe --> f3(Filter3 -) -- pipe --> sk(Sink)
+    subgraph "thread 2"
+      f1 -- pipe --> f3(Filter3) -- pipe --> sk(Sink)
       f2 -- pipe --> f3
     end
 </pre>
@@ -676,13 +676,13 @@ How to **balance load** between threads?
 <center>
   <pre class="mermaid">
     flowchart LR
-      subgraph "thread 1 -"
-        s(Source) --> f1(Filter1 -)
-        s --> f2(Filter2 -) --> f3(Filter3 -)
+      subgraph "thread 1"
+        s(Source) --> f1(Filter1)
+        s --> f2(Filter2) --> f3(Filter3)
         f1 --> f3
       end
-      subgraph "thread 2 -"
-        f3 -- pipe --> f4(Filter4 -) --> f5(Filter5 -) --> sk(Sink)
+      subgraph "thread 2"
+        f3 -- pipe --> f4(Filter4) --> f5(Filter5) --> sk(Sink)
       end
   </pre>
   <small>
@@ -696,8 +696,54 @@ How to **balance load** between threads?
 
 ---
 
-# P&F: Messaging (internal, external)
+# P&F: Messages along the pipes
 
+.cols[
+  .col50[
+Exactly **what needed**: <br>
+  $\Rightarrow$ complex graphs; <br>
+  $\Rightarrow$ no general channel.
+  ]
+  .col50[
+```python
+@define_block("LandmarksDetector",
+              Input("gray"),
+              Input("faces"),
+              Output("landmarks"),
+)
+def landmarks(gray, faces):
+  ...
+```
+  ]
+]
+
+.vspace[]
+
+.cols[
+  .col50[
+A **general container**: <br>
+  $\Rightarrow$ complex message checking; <br>
+  $\Rightarrow$ memory management.
+  ]
+  .col50[
+```python
+def landmarks_detector(source):
+  for frame in source:
+    # Input:
+    faces = frame["shapes"]["faces"]
+    gray = frame["gray"]
+    # Output:
+    frame["shapes"]["landmarks"] = ...
+    yield frame
+```
+  ]
+]
+
+*Configuration* can be done **via IoC** (see below)... <br>
+&nbsp;&nbsp;&nbsp;...or can travel **with messages** (see Epypes).
+
+*External notifications* require a **queue and a thread**... <br>
+&nbsp;&nbsp;&nbsp;...**answers** & **commands** can travel in the whiteboard.
 
 ---
 
@@ -746,10 +792,6 @@ A processing graph can be a complex structure:
 
 ---
 
-# P&F: Configuration
-
----
-
 # Thanks for listening
 
 .cols[
@@ -758,7 +800,7 @@ A processing graph can be a complex structure:
 #### Bib
  ]
  .col70[
- <p class="fancy">(o_O) ?</p>
+ <p class="fancy">(ツ)_/</p>
  ]
 ]
 
@@ -774,8 +816,20 @@ A processing graph can be a complex structure:
 
   <script src="js/remark-latest.min.js"></script>
   <script src="js/mermaid.min.js"></script>
+  <script src="js/katex.min.js"></script>
+  <script src="js/auto-render.min.js"></script>
+
+  <link rel="stylesheet" href="css/katex.min.css">
+
   <script>
-    var slideshow = remark.create();
+    var slideshow = remark.create({}, () => {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+        ]
+      });
+    });
     // don't let mermaid automatically load on start
     mermaid.initialize({
       startOnLoad: false,
@@ -795,7 +849,9 @@ A processing graph can be a complex structure:
     // first starting slide won't trigger the slide event, manually init mermaid
     initMermaidInSlide(slideshow.getSlides()[slideshow.getCurrentSlideIndex()])
     // on each slide event, trigger init mermaid
-    slideshow.on('afterShowSlide', initMermaidInSlide);
+    slideshow.on('afterShowSlide', (slide) => {
+      initMermaidInSlide(slide);
+    });
   </script>
 </body>
 

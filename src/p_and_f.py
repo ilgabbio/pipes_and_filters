@@ -31,7 +31,11 @@ def faces(gray):
         res = []
     return tuple(map(Rect, res))
 
-@define_block("LandmarksDetector", Input("gray"), Input("faces"), Output("landmarks"))
+@define_block("LandmarksDetector",
+              Input("gray"),
+              Input("faces"),
+              Output("landmarks"),
+)
 def landmarks(gray, faces):
     detector = cv2.face.createFacemarkLBF()
     detector.loadModel('models/lbfmodel.yaml')
