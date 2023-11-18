@@ -13,7 +13,8 @@ from shapes import Rect, Landmarks
 @define_block("Camera", Output("image"))
 def camera():
     cap = cv2.VideoCapture(0)
-    _, image = cap.read()
+    for _ in range(10):
+        _, image = cap.read()
     cap.release()
     return image
 
@@ -59,7 +60,13 @@ def draw_image(image, shapes):
 def save_image(image):
     cv2.imwrite('generated/frame.png', image)
 
-blocks = [camera, rgb2gray, faces, landmarks, cons, draw_image, save_image]
+image_holder = st.empty()
+
+@define_block("Display image", Input("image"))
+def display_image(image):
+    image_holder.image(image)
+
+blocks = [camera, rgb2gray, faces, landmarks, cons, draw_image, save_image, display_image]
 
 load_schema = st.selectbox('Select a saved schema:', barfi_schemas())
 compute_engine = st.checkbox('Activate barfi compute engine', value=False)

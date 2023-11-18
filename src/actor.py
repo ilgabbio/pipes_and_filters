@@ -4,12 +4,13 @@ import numpy as np
 from .shapes import Rect, Landmarks
 from .tools import flatten
 import pykka
+from queue import Queue
 
 
 def main():
     # The actor system (a chain in this case):
     Runner(
-        Source, Preprocessor, FacesDetector, LandmarksDetector, Display
+        Source, Preprocessor, FacesDetector, LandmarksDetector, Drawer, Queuer
     ).run()
 
 
@@ -24,11 +25,15 @@ class Runner:
         actor_refs.reverse()
 
         while cv2.waitKey(1) != 27:
-            # Tell is too fast, a back-pressure mechanism is needed.
-            actor_refs[0].ask({"shapes": {}})
+            # In a real scenario, these can have different rates:
+            actor_refs[0].tell({"shapes": {}})
+            image = actor_refs[-1].ask(None)
+            if image is not None:
+                cv2.imshow('', image)
 
         for actor in actor_refs:
             actor.stop()
+        cv2.destroyAllWindows()
 
 
 class Source(pykka.ThreadingActor):
@@ -93,16 +98,31 @@ class LandmarksDetector(pykka.ThreadingActor):
         self._dest.tell(frame)
 
 
-class Display(pykka.ThreadingActor):
+class Drawer(pykka.ThreadingActor):
+    def __init__(self, dest) -> None:
+        super().__init__()
+        self._dest = dest
+
     def on_receive(self, frame):
         image = frame["image"]
         for shape in flatten(frame["shapes"].values()):
             shape.draw(image)
-        cv2.imshow('', image)
+        self._dest.tell(frame)
 
-    def stop(self):
-        super().stop()
-        cv2.destroyAllWindows()
+
+class Queuer(pykka.ThreadingActor):
+    def __init__(self, queue: Queue = None):
+        super().__init__()
+        self._queue = Queue(maxsize=10) if queue is None else queue
+
+    def on_receive(self, frame: dict | None):
+        try:
+            if frame is not None:
+                self._queue.put_nowait(frame["image"])
+            else:
+                return self._queue.get_nowait()
+        except:
+            return None
 
 
 if __name__ == "__main__":
