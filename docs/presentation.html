@@ -37,6 +37,10 @@
       display: flex;
     }
 
+    .col10 {
+      flex: 10%;
+    }
+
     .col20 {
       flex: 20%;
     }
@@ -66,7 +70,38 @@
       flex: 70%;
     }
 
+    .col80 {
+      flex: 80%;
+    }
+
+    .col90 {
+      flex: 90%;
+    }
+
     .bib {
+      font-size: 18px;
+    }
+
+    .compact,
+    .compact ul {
+      font-size: 22px;
+      margin: 0;
+      padding: 0;
+    }
+
+    .compact p {
+      font-size: 22px;
+      margin-top: 0;
+      padding: 0;
+    }
+
+    .small,
+    .small ul {
+      font-size: 20px;
+    }
+
+    .tiny,
+    .tiny ul {
       font-size: 18px;
     }
 
@@ -106,7 +141,7 @@ class: center, middle
 
 # The faced problem
 
-- Design **image processing** applications:
+- Design **computer vision** applications:
 
   - running **real-time**:
       - constrained on **latency/throughput**;
@@ -118,6 +153,7 @@ class: center, middle
       - composed by **native building blocks**.
 
 ---
+exclude: true
 
 # The faced problem
 
@@ -137,6 +173,7 @@ class: center, middle
       - **high troughput**, progressive processing;
 
 ---
+exclude: true
 
 # The faced problem
 
@@ -165,19 +202,41 @@ Detect face landmarks from camera and display them.
   c([Camera]) --> p[Preprocess] --> f[Faces] --> l[Landmarks] --> d>Display]
 </pre>
 <br/>
+.cols[
+  .col50[.compact[
+- **inter-dependent steps**;
+
+- **multiple** inputs/outputs;
+
+- different **priority**;
+
+- different **complexity**;
+
+- different **time constraints**;
+
+- **composeability**.
+  ]]
+  .col50[
 <center>
-  <img src="images/example.png" width="500"/>
+  <img src="images/example.png" width="410"/>
 </center>
+  ]
+]
+
+<center><small>
+  Code on <a href="https://github.com/ilgabbio/pipes_and_filters">https://github.com/ilgabbio/pipes_and_filters</a>
+</small></center>
 
 ---
 
 # Base code
 
-- We are using **native algorithms** implementations;
+- We are using **native algorithms** implementations:
+    - <small>OpenCV, Numpy, DLib, SimpleCV... many frameworks available.</small>
 
 - Python is an **orchestrator** of CPU/GPU-intensive code;
 
-- Multithreading can be adopted by algorithms.
+- Parallelization can be adopted by algorithms.
 
 <pre class="mermaid">
   classDiagram
@@ -205,15 +264,22 @@ Detect face landmarks from camera and display them.
 
 ---
 
-# Pipes and filters
+# Which architecture? &nbsp; Pipes and filters!
 
 <pre class="mermaid">
   flowchart LR
-    s(Source) -- pipe --> Filter1 -- pipe --> sk1(Sink)
-    s -- pipe --> Filter2 -- pipe --> sk2(Sink)
+    s(Source) -- pipe --> Filter1 -- pipe --> sk1(Sink1)
+    s -- pipe --> Filter2 -- pipe --> sk2(Sink2)
     Filter1 -- pipe --> Filter2
 </pre>
 
+Let's try to answer some questions, such as:
+.cols[
+.col10[
+&nbsp;
+]
+.col80[
+.compact[.small[
 - What are **pipes** and what guarantees must they offer?
 - What are **filters** and what must offer?
 - What about the **flow management** and optimization?
@@ -223,6 +289,8 @@ Detect face landmarks from camera and display them.
 - What about **communication** between components?
 - How can we **interact** with the running system (in/out)?
 - What **frameworks** are there and which to choose?
+]]]
+]
 
 ---
 
@@ -254,9 +322,11 @@ Detect face landmarks from camera and display them.
 
 # P&F: Topology.. what kind of graphs
 
+--
+
 .cols[
   .col20.rowTitle[
-    Chains
+    Pipelines
   ]
   .col60[
     <pre class="mermaid">
@@ -508,6 +578,12 @@ More often we have a pull-push mix:
   </pre>
 </center>
 
+.tiny[
+<center>
+Circuits and pyee are popular event management frameworks.
+</center>
+]
+
 ---
 
 # P&F flow management: external
@@ -577,6 +653,9 @@ class StepActor(ActorBase):
     "Receives messages and sends results"
     self._dest.tell(process(frame))
 ```
+.tiny[
+Thespian, **Pykka**, *Xoscar*, to name a few.
+]
   ]
   .col50[
   <p style="margin: -40px; margin-left: 50px;">
@@ -671,7 +750,7 @@ How to **balance load** between threads?
 
 <br/>
 
-**Epypes** proposes a framework to *split* the graph in a pipeline: 
+**EPypes** proposes a framework to *split* the graph in a pipeline: 
 
 <center>
   <pre class="mermaid">
@@ -712,7 +791,7 @@ Exactly **what needed**: <br>
               Output("landmarks"),
 )
 def landmarks(gray, faces):
-  ...
+  ... # Example with Barfi.
 ```
   ]
 ]
@@ -740,7 +819,7 @@ def landmarks_detector(source):
 ]
 
 *Configuration* can be done **via IoC** (see below)... <br>
-&nbsp;&nbsp;&nbsp;...or can travel **with messages** (see Epypes).
+&nbsp;&nbsp;&nbsp;...or can travel **with messages** (see EPypes).
 
 *External notifications* require a **queue and a thread**... <br>
 &nbsp;&nbsp;&nbsp;...**answers** & **commands** can travel in the whiteboard.
@@ -776,7 +855,7 @@ def landmarks_detector(source):
 </pre>
 
 <center>
-  See epypes, both the paper and the python implementation.  
+  See EPypes, both the paper and the Python implementation.  
 </center>
 
 ---
