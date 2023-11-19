@@ -14,6 +14,7 @@ pykka = "*"
 streamlit = "*"
 barfi = "*"
 epypes = "*"
+pyee = "*"
 
 [dev-packages]
 
