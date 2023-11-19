@@ -836,9 +836,11 @@ def landmarks_detector(source):
 - Graph described by the **configuration**:
 
   - graph representation **data structure**;
-  - **Inversion of Control** (IoC) system description;
+  - **Inversion of Control** (IoC) system description: <br>
+    &nbsp;&nbsp;&nbsp;see *Hydra*, Dependency Injector.
   - event-based systems connected by **bus configuration**;
-  - **auto-wiring** guided by in/out argument relations.
+  - **auto-wiring** guided by in/out argument relations: <br>
+    &nbsp;&nbsp;&nbsp;see `epypes_fw.py` and `autowiring.py`.
 
 <pre class="mermaid">
   flowchart LR
@@ -853,10 +855,6 @@ def landmarks_detector(source):
       d --> e --> f
     end
 </pre>
-
-<center>
-  See EPypes, both the paper and the Python implementation.  
-</center>
 
 ---
 

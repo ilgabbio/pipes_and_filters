@@ -5,7 +5,7 @@ import numpy as np
 import cv2
 
 from epypes import compgraph
-from epypes.pipeline import Pipeline, SourcePipeline, SinkPipeline
+from epypes.pipeline import SourcePipeline, SinkPipeline
 from epypes.queue import Queue
 
 from src.shapes import Rect, Landmarks
@@ -137,7 +137,7 @@ class LandmarksDetector:
             _, lands = self._detector.fit(gray, np.array([f.rect for f in faces]))
         except cv2.error:
             lands = [None] * len(faces)
-        return  tuple(map(Landmarks, lands))
+        return tuple(map(Landmarks, lands))
 
 def cons(l1, l2):
     return [] + list(l1) + list(l2)
