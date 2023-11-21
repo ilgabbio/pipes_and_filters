@@ -2,7 +2,7 @@
 <html>
 
 <head>
-  <title>Software Architectures for Computer Vision on Edge Devices</title>
+  <title>Software Architectures for embedded Computer Vision</title>
   <meta charset="utf-8">
   <style>
     @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
@@ -133,7 +133,7 @@
 
 class: center, middle
 
-# Architectures for CV on the Edge
+# Architectures for embedded CV
 
 ### Considerations from literature and real projects
 
@@ -146,7 +146,7 @@ class: center, middle
   - running **real-time**:
       - constrained on **latency/throughput**;
 
-  - on **edge devices**:
+  - on **embedded devices**:
       - relying on **local resources**, no cloud access;
 
   - **CPU/GPU-intensive**:
@@ -300,18 +300,19 @@ Let's try to answer some questions, such as:
   .col70[
 - **Directly**, function calls;
 
-- **Across threads**:
+- **Across threads**, queues;
 
-  - Locking or not locking?
-  - Lock-free solutions.
-  - Is SP/SC the target?
-
-- **Across machines**:
-
-  - not on edge-devices;
-  - unbound latency.
+- **Across machines**, avoid:
+  - unbound latency;
 
 - **Transparently**, managed.
+
+.compact[
+Queues in Python:
+  - lists.. DO NOT USE them!
+  - `queue.Queue`: thread safe.. but slow.
+  - **`collections.deque`**: flexible, pretty fast! 
+]
   ]
   .col30[
     <img src="images/queue.png" width="300"/>
@@ -772,6 +773,40 @@ How to **balance load** between threads?
 - Efficient within graph comm. with direct calls;
 
 - efficient between graph comm. using SP/SC queues.
+
+---
+exclude: true
+
+# P&F threading: Python and the GIL
+
+- Python allows extensions to
+  [release the GIL](https://docs.python.org/3/c-api/init.html#releasing-the-gil-from-extension-code),
+  [with C APIs](https://github.com/python/cpython/blob/d67f947c72af8a215db2fd285e5de9b1e671fde1/Python/ceval_gil.c#L612):
+  ```c
+  PyThreadState *PyEval_SaveThread(void) {
+      PyThreadState *tstate = _PyThreadState_GET();
+      _PyThreadState_Detach(tstate);
+      return tstate; }
+  ```
+
+- Many packages release the GIL in:
+    - IO blocking code (we have AsyncIO too);
+    - CPU-intensive code, see: 
+      [Numpy](https://github.com/numpy/numpy/blob/6031da18454335b7df95bed6597e95154bbdba2f/numpy/_core/include/numpy/ufuncobject.h#L210),
+      [Scipy](https://scipy-cookbook.readthedocs.io/items/Multithreading.html),
+      [OpenCV](https://github.com/opencv/opencv/blob/6d4f66472e14b29b8e1623859cfebfdc67f677c3/modules/python/src2/cv2.cpp#L55).
+
+<center>
+  <pre class="mermaid">
+    flowchart LR
+      subgraph "GIL release limit..."
+        Numpy
+        OpenCV
+      end
+      App --> Thread1 --> Numpy--> Task1
+      App --> Thread2 --> OpenCV--> Task2
+  </pre>
+</center>
 
 ---
 

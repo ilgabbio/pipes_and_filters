@@ -15,6 +15,7 @@ streamlit = "*"
 barfi = "*"
 epypes = "*"
 pyee = "*"
+matplotlib = "*"
 
 [dev-packages]
 

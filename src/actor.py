@@ -4,10 +4,11 @@ import numpy as np
 from .shapes import Rect, Landmarks
 from .tools import flatten
 import pykka
-from queue import Queue
+from collections import deque
 
 
 def main():
+    pykka.ThreadingActor.use_daemon_thread = True
     # The actor system (a chain in this case):
     Runner(
         Source, Preprocessor, FacesDetector, LandmarksDetector, Drawer, Queuer
@@ -31,9 +32,7 @@ class Runner:
             if image is not None:
                 cv2.imshow('', image)
 
-        for actor in actor_refs:
-            actor.stop()
-        cv2.destroyAllWindows()
+        raise SystemExit(0)
 
 
 class Source(pykka.ThreadingActor):
@@ -111,16 +110,18 @@ class Drawer(pykka.ThreadingActor):
 
 
 class Queuer(pykka.ThreadingActor):
-    def __init__(self, queue: Queue = None):
+    def __init__(self, queue: deque = None):
         super().__init__()
-        self._queue = Queue(maxsize=10) if queue is None else queue
+        self._queue = deque(maxlen=10) if queue is None else queue
 
     def on_receive(self, frame: dict | None):
         try:
             if frame is not None:
-                self._queue.put_nowait(frame["image"])
+                # Overwrites the older if the deque is full:
+                self._queue.append(frame["image"])
             else:
-                return self._queue.get_nowait()
+                # Raises if the deque is empty:
+                return self._queue.pop()
         except:
             return None
 
