@@ -12,13 +12,13 @@ from functools import partial
 ee = AsyncIOEventEmitter()
 
 
-async def main():
+def main():
     ctx = {}
     while cv2.waitKey(1) != 27:
-        await source({"ctx": ctx, "shapes": {}})
+        source({"ctx": ctx, "shapes": {}})
 
 
-async def source(frame):
+def source(frame):
     # Example with context:
     cap = frame["ctx"].get("cap")
     if cap is None:
@@ -27,20 +27,20 @@ async def source(frame):
             raise IOError("Cannot open webcam")
         frame["ctx"]["cap"] = cap
 
-    _, image = await wrap(cap.read)
+    _, image = cap.read()
     frame["image"] = image
     ee.emit('image', frame)
 
 
 @ee.on('image')
-async def preprocess(frame):
-    gray = await wrap(cv2.cvtColor, frame["image"], cv2.COLOR_BGR2GRAY)
+def preprocess(frame):
+    gray = cv2.cvtColor(frame["image"], cv2.COLOR_BGR2GRAY)
     frame["gray"] = gray
     ee.emit('gray', frame)
 
 
 @ee.on('gray')
-async def faces_detector(frame):
+def faces_detector(frame):
     face_model = frame["ctx"].get("face_model")
     if face_model is None:
         face_model = cv2.CascadeClassifier(
@@ -49,14 +49,14 @@ async def faces_detector(frame):
         frame["ctx"]["face_moel"] = face_model
 
     faces = tuple(map(Rect,
-        await wrap(face_model.detectMultiScale, frame["gray"], 1.1, 4)
+        face_model.detectMultiScale(frame["gray"], 1.1, 4)
     ))
     frame["shapes"]["faces"] = faces
     ee.emit('faces', frame)
 
 
 @ee.on('faces')
-async def faces_landmarks(frame):
+def faces_landmarks(frame):
     landmarks_model = frame["ctx"].get("landmarks_model")
     if landmarks_model is None:
         landmarks_model  = cv2.face.createFacemarkLBF()
@@ -65,8 +65,7 @@ async def faces_landmarks(frame):
 
     faces = frame["shapes"]["faces"]
     try:
-        _, lands = await wrap(
-            landmarks_model.fit, 
+        _, lands = landmarks_model.fit( 
             frame["gray"],
             np.array([f.rect for f in faces]),
         )
@@ -77,27 +76,12 @@ async def faces_landmarks(frame):
 
 
 @ee.on('landmarks')
-async def display(frame):
+def display(frame):
     image = frame["image"]
     for shape in flatten(frame["shapes"].values()):
         shape.draw(image)
     cv2.imshow('', image)
 
 
-_POOL = ThreadPoolExecutor()
-
-
-async def wrap(op, *args): 
-    """
-    Wraps a call to be awaitable using a thread.
-    Useful only if all operations release the GIL.
-    """
-    return await (
-       asyncio
-       .get_event_loop()
-       .run_in_executor(_POOL, partial(op, *args))
-   )
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
