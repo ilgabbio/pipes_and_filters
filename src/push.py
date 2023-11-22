@@ -18,9 +18,13 @@ class Runner:
         self._source = source
 
     def run(self):
-        while cv2.waitKey(1) != 27:
+        while not self._must_stop():
             self._source.push({"shapes": {}})
         self._source.push(None)
+
+    def _must_stop(self) -> bool:
+        return cv2.waitKey(1) == 27
+
 
 
 class Step(ABC):
